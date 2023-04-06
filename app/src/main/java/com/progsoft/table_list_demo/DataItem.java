@@ -2,11 +2,21 @@ package com.progsoft.table_list_demo;
 
 public class DataItem {
     private String address, LL, distance;
+    private final String record;
 
     public DataItem(String address, String LL, String distance) {
         this.address = address;
         this.LL = LL;
         this.distance = distance;
+        this.record = "";
+    }
+
+    public DataItem(String s) {
+        this.record = s;
+    }
+
+    public String getRecord() {
+        return record;
     }
 
     public String getAddress() {

@@ -1,11 +1,17 @@
 package com.progsoft.table_list_demo;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.view.Gravity;
 import android.widget.LinearLayout;
@@ -13,43 +19,88 @@ import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
+import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Date;
 
+@SuppressLint("SetTextI18n")
 public class MainActivity extends AppCompatActivity {
     // 声明变量
     TableLayout tableLayout;
-    private final ArrayList<DataItem> dataItems = new ArrayList<>();
-    private final String TAG = "MainActivity";
+    private static final ArrayList<DataItem> dataItems = new ArrayList<>();
+    private static final String TAG = "MainActivity";
+    public static MyHandler myHandler = null;
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Log.e(TAG, "onCreate");
 
+//        File path = new File(Environment.getExternalStorageDirectory()+"/progsoft/demo/log/");
+        File path = new File(Environment.getExternalStorageDirectory() + "/" + Utils.LOG_FILEPATH);
+        if(!path.exists()){
+            Log.e(TAG, "mkdir " + path + " " + path.mkdirs());
+        }
+
+        TextView tv = findViewById(R.id.version);
+        tv.setText("PC-VER:" + BuildConfig.VERSION_NAME + " " + BuildConfig.BUILD_TYPE);
         // 添加要显示的数据
         dataItems.add(new DataItem("新星花园2号楼1001室", "(21, 104)", "90"));
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < 30; i++)
             dataItems.add(new DataItem("地址" + i, "(22, 115)", "89"));
         // 绘制表格
         initTable();
+        Intent service = new Intent(getApplicationContext(), MyService.class);
+        getApplicationContext().startForegroundService(service);
+        if (myHandler == null) {
+            myHandler = new MyHandler(new WeakReference<>(this));
+            Log.e(TAG, "new Handler");
+        } else {
+            Log.e(TAG, "old Handler");
+        }
         MyRunnable myRunnable = new MyRunnable();
         Thread mThread = new Thread(myRunnable, "Timer");
         mThread.start();
     }
 
-    class MyRunnable implements Runnable {
+
+    class MyHandler extends Handler {
+        private final WeakReference<MainActivity> activity;
+        MyHandler(WeakReference<MainActivity> activity) {
+            this.activity = activity;
+        }
+        @Override
+        public void handleMessage(Message msg) {
+            if (msg.what == 0) {
+                //fileRead(Utils.INFO_FILENAME);
+                initTable();
+            } else {
+                TextView tv = findViewById(R.id.textView);
+                tv.setText(new Date().toLocaleString());
+            }
+        }
+    }
+
+    public static void sendHandler(int what) {
+        Message check = myHandler.obtainMessage(what, "");
+        myHandler.sendMessage(check);
+    }
+
+    static class MyRunnable implements Runnable {
         @Override
         public void run() {
             Log.e(TAG, "****HTTPS****:" + HttpClient.doGet("https://www.baidu.com/"));
             Log.e(TAG, "****HTTP*****:" + HttpClient.doGet("http://www.baidu.com/"));
+            Log.e(TAG, "****GET UTILS*****:" + HttpClient.doGet(Utils.GET_CHARGE_URL));
         }
     }
 
     @SuppressLint("SetTextI18n")
     private void initTable() {
         tableLayout = findViewById(R.id.tableLayout);
-
         int padding = dip2px(getApplicationContext(), 5);
 
         // 遍历dataItems, 每一条数据都加进TableLayout中
@@ -121,12 +172,10 @@ public class MainActivity extends AppCompatActivity {
             // 填充文字数据
             tvLL.setText(dataItem.getLL());
 
-
             // 将所有新的组件加入到对应的视图中
             linearLayout.addView(tvNo);
             linearLayout.addView(tvAddress);
             linearLayout.addView(tvLL);
-
 
             // 第四列
             for (int j = 0; j < 20; j++) {
